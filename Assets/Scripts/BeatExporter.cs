@@ -3,14 +3,14 @@ using UnityEngine;
 
 public static class BeatExporter
 {
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Sequential, Pack = 4)]
     public struct PadHit
     {
         public int padId;
         public float time;
     }
 
-    [DllImport("BeatRenderer")]
+    [DllImport("BeatRenderer", CallingConvention = CallingConvention.Cdecl)]
     private static extern void RenderBeat(
         [In] PadHit[] hits,
         int numHits,
