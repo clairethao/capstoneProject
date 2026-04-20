@@ -9,6 +9,9 @@ EditorBuildSettings:
     path: Assets/Scenes/MainMenuScene.unity
     guid: 2cda990e2423bbf4892e6590ba056729
   - enabled: 1
+    path: Assets/Scenes/KitSelectorScene.unity
+    guid: 195e7acf16be4e14bb9293340b4e4f26
+  - enabled: 1
     path: Assets/Scenes/DrumPadScene.unity
     guid: c5a65e804ecb5034bb760e87e3e0e735
   - enabled: 1

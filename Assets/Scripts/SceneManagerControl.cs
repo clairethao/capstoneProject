@@ -5,6 +5,11 @@ public class SceneManagerControl : MonoBehaviour
 {
     public void CreateNew()
     {
+        SceneManager.LoadScene("KitSelectorScene");
+    }
+
+    public void Create()
+    {
         SceneManager.LoadScene("DrumPadScene");
     }
 
