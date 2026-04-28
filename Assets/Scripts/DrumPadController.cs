@@ -14,6 +14,8 @@ public class DrumPadController : MonoBehaviour
     public int bars;
     public float loopLength;
     private float loopPosition = 0f;
+    public SessionDatabase sessionDatabase;
+
 
     public bool isRecording = false;
     private bool isLooping = false;
@@ -211,4 +213,9 @@ public class DrumPadController : MonoBehaviour
                 Debug.LogWarning($"Missing sample: DrumSamples/{kitName}/pad{i}.wav");
         }
     }
+    public void OnSaveButtonPressed()
+    {
+        StartCoroutine(sessionDatabase.SaveCurrentSession());
+    }
+
 }
