@@ -15,7 +15,7 @@ public class DrumPadController : MonoBehaviour
     public float loopLength;
     private float loopPosition = 0f;
     public SessionDatabase sessionDatabase;
-
+    public SavedPopupUI savedPopupUI;
 
     public bool isRecording = false;
     private bool isLooping = false;
@@ -37,7 +37,17 @@ public class DrumPadController : MonoBehaviour
 
     void Start()
     {
-        LoadSelectedKit();
+        if (SessionData.loadedHits != null)
+            recordedHits = SessionData.loadedHits;
+        else
+            recordedHits = new List<PadHit>();
+        
+        LoadKit(SessionData.kitName);
+        
+        if (SessionData.bpm <= 0)
+            SessionData.bpm = 120;
+
+        bpmController.SetBPM(SessionData.bpm);
         bars = SessionData.bars;
     }
 
@@ -215,7 +225,29 @@ public class DrumPadController : MonoBehaviour
     }
     public void OnSaveButtonPressed()
     {
-        StartCoroutine(sessionDatabase.SaveCurrentSession());
+        StartCoroutine(SaveEverything());
+    }
+
+    private IEnumerator SaveEverything()
+    {
+        Debug.Log("Saving project:");
+        Debug.Log("projectName = " + SessionData.projectName);
+        Debug.Log("kitName = " + SessionData.kitName);
+        Debug.Log("bars = " + SessionData.bars);
+        Debug.Log("bpm = " + SessionData.bpm);
+
+        SessionData.bpm = (int)bpmController.bpm;
+
+        yield return StartCoroutine(sessionDatabase.SaveCurrentSession());
+
+        int sessionId = SessionData.sessionId;
+
+        foreach (var hit in recordedHits)
+        {
+            yield return StartCoroutine(sessionDatabase.SaveHit(sessionId, hit));
+        }
+
+        yield return StartCoroutine(savedPopupUI.ShowPopup());
     }
 
 }

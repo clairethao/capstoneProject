@@ -17,10 +17,12 @@ public class ContinueSceneManager : MonoBehaviour
     void Start()
     {
         StartCoroutine(sessionDatabase.LoadSessions(OnSessionsLoaded));
+        Debug.Log("ContinueSceneManager started");
     }
 
     private void OnSessionsLoaded(string json)
     {
+        Debug.Log("Sessions JSON: " + json);
         var root = JObject.Parse(json);
         var sessions = root["sessions"] as JArray;
 
@@ -48,8 +50,14 @@ public class ContinueSceneManager : MonoBehaviour
             SessionData.kitName = (string)s["kit_name"];
             SessionData.bars = (int)s["bars"];
             SessionData.bpm = (int)s["bpm"];
+            SessionData.sessionId = sessionId;
 
-            UnityEngine.SceneManagement.SceneManager.LoadScene("DrumPadScene");
+            StartCoroutine(sessionDatabase.LoadHits(sessionId, (hits) =>
+            {
+                SessionData.loadedHits = hits;
+
+                UnityEngine.SceneManagement.SceneManager.LoadScene("DrumPadScene");
+            }));
         }));
     }
 

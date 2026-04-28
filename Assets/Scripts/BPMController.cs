@@ -21,4 +21,11 @@ public class BPMController : MonoBehaviour
         bpm = bpmSlider.value;
         bpmText.text = bpm.ToString();
     }
+
+    public void SetBPM(int newBpm)
+    {
+        bpm = newBpm;
+        bpmSlider.value = newBpm;
+        bpmText.text = newBpm.ToString();
+    }
 }
