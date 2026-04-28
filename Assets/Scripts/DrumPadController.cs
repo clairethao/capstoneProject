@@ -7,27 +7,36 @@ using UnityEngine;
 public class DrumPadController : MonoBehaviour
 {
     public List<Pad> pads;
-    public BPMController bpmController;
-    public bool isRecording = false;
-    public RecordIndicatorUI recordIndicatorUI;
-    public float recordStartTime;
     public List<PadHit> recordedHits = new List<PadHit>();
-    public int bars = 2;
+    public BPMController bpmController;
+    public UnityEngine.UI.Image loopProgressBar;
+    public RecordIndicatorUI recordIndicatorUI;
+    public int bars;
     public float loopLength;
     private float loopPosition = 0f;
 
-
+    public bool isRecording = false;
+    private bool isLooping = false;
+ 
     [System.Serializable]
     public class PadHit
     {
         public int padId;
         public float time;
+        public int orderIndex;
 
-        public PadHit(int id, float t)
+        public PadHit(int id, float t, int index)
         {
             padId = id;
             time = t;
+            orderIndex = index;
         }
+    }
+
+    void Start()
+    {
+        LoadSelectedKit();
+        bars = SessionData.bars;
     }
 
     void Update()
@@ -35,33 +44,50 @@ public class DrumPadController : MonoBehaviour
         float bpm = bpmController.bpm;
         loopLength = (60f / bpm) * 4f * bars;
 
-        loopPosition += Time.deltaTime;
+        if (isLooping || isRecording)
+        {
+            loopPosition += Time.deltaTime;
 
-        if (loopPosition > loopLength)
-            loopPosition -= loopLength;
+            if (loopPosition > loopLength)
+                loopPosition -= loopLength;
+        }
+
+        if (loopProgressBar != null && loopLength > 0f)
+        {
+            loopProgressBar.fillAmount = loopPosition / loopLength;
+        }
     }
 
     public void StartRecording()
     {
         isRecording = true;
+        loopPosition = 0f;
         recordIndicatorUI.SetRecording(true);
     }
 
     public void ClearRecording()
     {
         recordedHits.Clear();
+        loopPosition = 0f;
+        isLooping = false;
+
+        if (loopProgressBar != null)
+            loopProgressBar.fillAmount = 0f;
     }
 
     public void StopAll()
     {
         StopAllCoroutines();
         isRecording = false;
+        isLooping = false;
         recordIndicatorUI.SetRecording(false);
     }
 
     public void PlayLoop()
     {
         StopAllCoroutines();
+        loopPosition = 0f;
+        isLooping = true;
         StartCoroutine(LoopCoroutine());
     }
 
@@ -69,13 +95,22 @@ public class DrumPadController : MonoBehaviour
     {
         while (true)
         {
-            recordedHits.Sort((a, b) => a.time.CompareTo(b.time));
+            recordedHits.Sort((a, b) =>
+            {
+                int timeCompare = a.time.CompareTo(b.time);
+                if (timeCompare != 0)
+                    return timeCompare;
+
+                return a.orderIndex.CompareTo(b.orderIndex);
+            });
+
             var hitsSnapshot = new List<PadHit>(recordedHits);
 
             float loopStart = Time.time;
 
             foreach (PadHit hit in hitsSnapshot)
             {
+                Debug.Log($"[Playback] pad {hit.padId}, time={hit.time}, orderIndex={hit.orderIndex}");
                 float targetTime = loopStart + hit.time;
                 float waitTime = targetTime - Time.time;
 
@@ -93,46 +128,20 @@ public class DrumPadController : MonoBehaviour
         }
     }
 
-    public void PlayRecording()
-    {
-        StopAllCoroutines();
-        StartCoroutine(PlaybackCoroutine());
-    }
-
-    private System.Collections.IEnumerator PlaybackCoroutine()
-    {
-        if (recordedHits.Count == 0)
-            yield break;
-
-        float bpm = bpmController.bpm;
-        float speedMultiplier = 120f / bpm;
-
-        float startTime = Time.time;
-
-        foreach (PadHit hit in recordedHits)
-        {
-            float adjustedTime = hit.time * speedMultiplier;
-            float waitTime = (startTime + adjustedTime) - Time.time;
-
-            if (waitTime > 0)
-                yield return new WaitForSeconds(waitTime);
-
-            TriggerPad(hit.padId);
-        }
-    }
-
-    private string GetUniqueExportPath()
+    private string GetUniqueExportPath(string projName)
     {
         string folder = Application.persistentDataPath;
-        string baseName = "exportedBeat";
         string extension = ".wav";
 
-        string path = System.IO.Path.Combine(folder, baseName + extension);
+        if (string.IsNullOrWhiteSpace(projName))
+            projName = "exportedBeat";
+
+        string path = Path.Combine(folder, projName + extension);
 
         int counter = 1;
-        while (System.IO.File.Exists(path))
+        while (File.Exists(path))
         {
-            path = System.IO.Path.Combine(folder, baseName + counter + extension);
+            path = Path.Combine(folder, projName + counter + extension);
             counter++;
         }
 
@@ -141,13 +150,11 @@ public class DrumPadController : MonoBehaviour
 
     public void OnExportButtonPressed()
     {
-        // Convert recorded hits to array
         BeatExporter.PadHit[] hitsArray = recordedHits
             .Select(h => new BeatExporter.PadHit { padId = h.padId, time = h.time })
             .ToArray();
 
-        // Choose your kit folder (this is the only thing you change when switching kits)
-        string kitFolderPath = Application.dataPath + "/Audio/DrumSamples/hiphopSamples";
+        string kitFolderPath = Application.dataPath + "/Resources/DrumSamples/" + SessionData.kitName;
 
         string[] fileNames = new string[]
         {
@@ -156,7 +163,7 @@ public class DrumPadController : MonoBehaviour
         "pad8.wav", "pad9.wav", "pad10.wav", "pad11.wav"
         };
 
-        string outputPath = GetUniqueExportPath();
+        string outputPath = GetUniqueExportPath(SessionData.projectName);
 
         BeatExporter.ExportBeat(
             hitsArray,
@@ -177,8 +184,31 @@ public class DrumPadController : MonoBehaviour
             if (isRecording)
             {
                 float t = loopPosition;
-                recordedHits.Add(new PadHit(padId, t));
+                int index = recordedHits.Count;
+
+                recordedHits.Add(new PadHit(padId, t, index));
+
+                Debug.Log($"[Recorded] pad {padId} at time {t}, orderIndex={index}");
             }
+        }
+    }
+
+    private void LoadSelectedKit()
+    {
+        string kitName = SessionData.kitName;
+        LoadKit(kitName);
+    }
+
+    private void LoadKit(string kitName)
+    {
+        for (int i = 0; i < pads.Count; i++)
+        {
+            AudioClip clip = Resources.Load<AudioClip>($"DrumSamples/{kitName}/pad{i}");
+
+            if (clip != null)
+                pads[i].SetClip(clip);
+            else
+                Debug.LogWarning($"Missing sample: DrumSamples/{kitName}/pad{i}.wav");
         }
     }
 }

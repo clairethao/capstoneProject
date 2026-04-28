@@ -1,8 +1,7 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
 
-public class SessionData : MonoBehaviour
+public static class SessionData
 {
-    
+    public static string projectName;
+    public static string kitName;
+    public static int bars;
 }

@@ -18,6 +18,11 @@ public class Pad : MonoBehaviour
         originalColor = padImage.color;
     }
 
+    public void SetClip(AudioClip clip)
+    {
+        audioSource.clip = clip;
+    }
+
     public void PlaySound()
     {
         if (audioSource != null)
